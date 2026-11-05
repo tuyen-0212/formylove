@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Heart 3D</title>
+  <title>Heart Planet & Cosmic Ring 3D</title>
   <style>
     * {
       margin: 0;
@@ -26,7 +26,7 @@
       cursor: grabbing;
     }
   </style>
-  <!-- Thư viện Three.js và OrbitControls để xoay / zoom bằng chuột và cảm ứng -->
+  <!-- Thư viện Three.js và OrbitControls -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 </head>
@@ -38,29 +38,29 @@
     const container = document.getElementById('canvas-container');
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.z = 30;
+    camera.position.set(0, 10, 35);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     container.appendChild(renderer.domElement);
 
-    // Kích hoạt điều khiển xoay 3D / Zoom bằng chuột & vuốt cảm ứng
+    // Kích hoạt xoay 3D / Zoom bằng chuột & vuốt cảm ứng
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
     controls.rotateSpeed = 0.8;
     controls.enableZoom = true;
 
-    // Tạo hình trái tim 3D từ các hạt sáng (Particles)
-    const particleCount = 7000;
-    const geometry = new THREE.BufferGeometry();
-    const positions = new Float32Array(particleCount * 3);
-    const colors = new Float32Array(particleCount * 3);
+    // --- 1. TẠO HÀNH TINH TRÁI TIM 3D CHÍNH GIỮA ---
+    const heartParticleCount = 8000;
+    const heartGeometry = new THREE.BufferGeometry();
+    const heartPositions = new Float32Array(heartParticleCount * 3);
+    const heartColors = new Float32Array(heartParticleCount * 3);
 
-    const baseColor = new THREE.Color("#ff1493");
+    const heartBaseColor = new THREE.Color("#ff1493");
 
-    for (let i = 0; i < particleCount; i++) {
+    for (let i = 0; i < heartParticleCount; i++) {
       let t = Math.PI * (Math.random() * 2 - 1);
       let u = Math.PI * (Math.random() * 2 - 1);
 
@@ -68,44 +68,95 @@
       let y = (13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t));
       let z = 16 * Math.pow(Math.sin(t), 3) * Math.sin(u);
 
-      let factor = 0.6 + Math.random() * 0.2;
-      positions[i * 3] = x * factor;
-      positions[i * 3 + 1] = y * factor;
-      positions[i * 3 + 2] = z * factor;
+      let factor = 0.55 + Math.random() * 0.15;
+      heartPositions[i * 3] = x * factor;
+      heartPositions[i * 3 + 1] = y * factor;
+      heartPositions[i * 3 + 2] = z * factor;
 
-      colors[i * 3] = baseColor.r + (Math.random() - 0.5) * 0.2;
-      colors[i * 3 + 1] = baseColor.g + (Math.random() - 0.5) * 0.2;
-      colors[i * 3 + 2] = baseColor.b + (Math.random() - 0.5) * 0.2;
+      heartColors[i * 3] = heartBaseColor.r + (Math.random() - 0.5) * 0.15;
+      heartColors[i * 3 + 1] = heartBaseColor.g + (Math.random() - 0.5) * 0.15;
+      heartColors[i * 3 + 2] = heartBaseColor.b + (Math.random() - 0.5) * 0.15;
     }
 
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    heartGeometry.setAttribute('position', new THREE.BufferAttribute(heartPositions, 3));
+    heartGeometry.setAttribute('color', new THREE.BufferAttribute(heartColors, 3));
 
-    const material = new THREE.PointsMaterial({
+    const heartMaterial = new THREE.PointsMaterial({
       size: 0.35,
       vertexColors: true,
       transparent: true,
-      opacity: 0.85,
+      opacity: 0.9,
       blending: THREE.AdditiveBlending
     });
 
-    const heartMesh = new THREE.Points(geometry, material);
+    const heartMesh = new THREE.Points(heartGeometry, heartMaterial);
     scene.add(heartMesh);
 
+    // --- 2. TẠO VÀNH ĐAI HẠT SÁNG LUNG LINH (PLANETARY RING) ---
+    const ringParticleCount = 6000;
+    const ringGeometry = new THREE.BufferGeometry();
+    const ringPositions = new Float32Array(ringParticleCount * 3);
+    const ringColors = new Float32Array(ringParticleCount * 3);
+
+    const innerRadius = 14;
+    const outerRadius = 26;
+    const ringColor1 = new THREE.Color("#ff69b4");
+    const ringColor2 = new THREE.Color("#00ffff");
+
+    for (let i = 0; i < ringParticleCount; i++) {
+      let angle = Math.random() * Math.PI * 2;
+      let radius = innerRadius + Math.random() * (outerRadius - innerRadius);
+
+      let x = Math.cos(angle) * radius;
+      let z = Math.sin(angle) * radius;
+      let y = (Math.random() - 0.5) * 1.5; // Độ dày mỏng của vành đai
+
+      ringPositions[i * 3] = x;
+      ringPositions[i * 3 + 1] = y;
+      ringPositions[i * 3 + 2] = z;
+
+      // Phối màu chuyển gradient giữa hồng rực và xanh neon
+      let mixedColor = ringColor1.clone().lerp(ringColor2, Math.random());
+      ringColors[i * 3] = mixedColor.r;
+      ringColors[i * 3 + 1] = mixedColor.g;
+      ringColors[i * 3 + 2] = mixedColor.b;
+    }
+
+    ringGeometry.setAttribute('position', new THREE.BufferAttribute(ringPositions, 3));
+    ringGeometry.setAttribute('color', new THREE.BufferAttribute(ringColors, 3));
+
+    const ringMaterial = new THREE.PointsMaterial({
+      size: 0.25,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.75,
+      blending: THREE.AdditiveBlending
+    });
+
+    const ringMesh = new THREE.Points(ringGeometry, ringMaterial);
+    
+    // Nghiêng vành đai một góc tạo hiệu ứng 3D quỹ đạo hành tinh đẹp mắt
+    ringMesh.rotation.x = Math.PI / 6;
+    ringMesh.rotation.z = Math.PI / 12;
+    scene.add(ringMesh);
+
+    // --- 3. ANIMATION VÀ VÒNG LẶP CHUYỂN ĐỘNG ---
     const clock = new THREE.Clock();
 
     function animate() {
       requestAnimationFrame(animate);
       const elapsedTime = clock.getElapsedTime();
 
-      // Cập nhật tọa độ xoay/zoom khi người dùng dùng chuột
       controls.update();
 
-      // Tự động xoay nhẹ trái tim khi không di chuột
-      heartMesh.rotation.y += 0.005;
+      // Trái tim tự quay chậm quanh trục
+      heartMesh.rotation.y = elapsedTime * 0.2;
 
-      // Hiệu ứng nhịp đập 3D
-      const beat = 1 + Math.sin(elapsedTime * 4) * 0.07 + Math.pow(Math.sin(elapsedTime * 8), 2) * 0.03;
+      // Vành đai xoay ngược chiều tạo chiều sâu vũ trụ
+      ringMesh.rotation.y = -elapsedTime * 0.15;
+
+      // Nhịp đập phập phồng cho "hành tinh" trái tim
+      const beat = 1 + Math.sin(elapsedTime * 4) * 0.06 + Math.pow(Math.sin(elapsedTime * 8), 2) * 0.03;
       heartMesh.scale.set(beat, beat, beat);
 
       renderer.render(scene, camera);
