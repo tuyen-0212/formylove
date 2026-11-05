@@ -13,7 +13,6 @@
     body {
       background-color: #000;
       overflow: hidden;
-      user-select: none;
     }
     #canvas-container {
       width: 100vw;
@@ -21,6 +20,7 @@
       position: absolute;
       top: 0;
       left: 0;
+      cursor: pointer;
     }
   </style>
   <!-- Thư viện Three.js và OrbitControls -->
@@ -49,13 +49,13 @@
     controls.rotateSpeed = 0.8;
     controls.enableZoom = true;
 
-    // --- 1. TẠO HÀNH TINH TRÁI TIM 3D ---
+    // --- 1. TẠO HÀNH TINH TRÁI TIM 3D CHÍNH GIỮA ---
     const heartParticleCount = 8000;
     const heartGeometry = new THREE.BufferGeometry();
     const heartPositions = new Float32Array(heartParticleCount * 3);
-    const originalPositions = new Float32Array(heartParticleCount * 3);
-    const explodeVelocities = new Float32Array(heartParticleCount * 3);
+    const originalPositions = new Float32Array(heartParticleCount * 3); // Lưu vị trí gốc để phục hồi
     const heartColors = new Float32Array(heartParticleCount * 3);
+    const velocities = [];
 
     const heartBaseColor = new THREE.Color("#ff1493");
 
@@ -80,12 +80,9 @@
       originalPositions[i * 3 + 1] = py;
       originalPositions[i * 3 + 2] = pz;
 
-      // Hướng và gia tốc nổ vừa phải để thu hồi dễ dàng
       let dir = new THREE.Vector3(px, py, pz).normalize();
-      let speed = 0.3 + Math.random() * 0.4;
-      explodeVelocities[i * 3] = dir.x * speed;
-      explodeVelocities[i * 3 + 1] = dir.y * speed;
-      explodeVelocities[i * 3 + 2] = dir.z * speed;
+      let speed = 0.4 + Math.random() * 0.6;
+      velocities.push(dir.multiplyScalar(speed));
 
       heartColors[i * 3] = heartBaseColor.r + (Math.random() - 0.5) * 0.15;
       heartColors[i * 3 + 1] = heartBaseColor.g + (Math.random() - 0.5) * 0.15;
@@ -106,7 +103,7 @@
     const heartMesh = new THREE.Points(heartGeometry, heartMaterial);
     scene.add(heartMesh);
 
-    // --- 2. TẠO VÀNH ĐAI HẠT SÁNG ---
+    // --- 2. TẠO VÀNH ĐAI HẠT SÁNG (COSMIC RING) ---
     const ringParticleCount = 10000;
     const ringGeometry = new THREE.BufferGeometry();
     const ringPositions = new Float32Array(ringParticleCount * 3);
@@ -151,26 +148,24 @@
     ringMesh.rotation.z = Math.PI / 6;
     scene.add(ringMesh);
 
-    // --- 3. QUẢN LÝ TRẠNG THÁI (NORMAL -> EXPLODING -> RESTORING) ---
-    let mode = 'normal'; // 'normal', 'exploding', 'restoring'
-    let explodeProgress = 0;
+    // --- 3. LOGIC NỔ VÀ TỰ ĐỘNG KHÔI PHỤC ---
+    // State: 'normal' -> 'exploding' -> 'restoring' -> 'normal'
+    let state = 'normal';
 
-    function triggerAction() {
-      if (mode === 'normal') {
-        mode = 'exploding';
-        explodeProgress = 0;
+    function triggerEffect() {
+      if (state === 'normal') {
+        state = 'exploding';
+        // Sau 1.8 giây nổ tỏa ra thì bắt đầu chuyển sang chế độ thu hồi khôi phục
+        setTimeout(() => {
+          state = 'restoring';
+        }, 1800);
       }
     }
 
-    // Nhận diện tương tác chính xác không bị trôi chuột
-    window.addEventListener('pointerdown', (e) => {
-      // Chỉ kích hoạt hiệu ứng khi click chuột trái hoặc chạm màn hình
-      if (e.button === 0) {
-        triggerAction();
-      }
-    });
+    window.addEventListener('click', triggerEffect);
+    window.addEventListener('touchstart', triggerEffect);
 
-    // --- 4. ANIMATION LOOP ---
+    // --- 4. ANIMATION VÀ VÒNG LẶP ---
     const clock = new THREE.Clock();
 
     function animate() {
@@ -181,8 +176,8 @@
 
       const pos = heartGeometry.attributes.position.array;
 
-      if (mode === 'normal') {
-        // Xoay nhẹ & đập bình thường
+      if (state === 'normal') {
+        // Trạng thái bình thường
         heartMesh.rotation.y = elapsedTime * 0.2;
         ringMesh.rotation.y = -elapsedTime * 0.15;
 
@@ -192,50 +187,51 @@
         heartMaterial.opacity = 0.95;
         ringMaterial.opacity = 0.9;
       } 
-      else if (mode === 'exploding') {
-        // Giai đoạn Nổ tỏa hạt sáng out ra ngoài trong 45 frames (~0.75s)
-        explodeProgress++;
+      else if (state === 'exploding') {
+        // Trạng thái nổ tỏa hạt ra ngoài
         for (let i = 0; i < heartParticleCount; i++) {
-          pos[i * 3] += explodeVelocities[i * 3];
-          pos[i * 3 + 1] += explodeVelocities[i * 3 + 1];
-          pos[i * 3 + 2] += explodeVelocities[i * 3 + 2];
+          pos[i * 3] += velocities[i].x;
+          pos[i * 3 + 1] += velocities[i].y;
+          pos[i * 3 + 2] += velocities[i].z;
         }
         heartGeometry.attributes.position.needsUpdate = true;
 
-        if (heartMaterial.opacity > 0.2) heartMaterial.opacity -= 0.015;
-
-        // Chuyển sang giai đoạn Thu hồi (Restore)
-        if (explodeProgress > 45) {
-          mode = 'restoring';
-        }
+        if (heartMaterial.opacity > 0) heartMaterial.opacity -= 0.015;
+        if (ringMaterial.opacity > 0) ringMaterial.opacity -= 0.015;
       } 
-      else if (mode === 'restoring') {
-        // Giai đoạn Phục hồi: Dùng Lerp hút các hạt trở về vị trí gốc
-        let settled = true;
+      else if (state === 'restoring') {
+        // Trạng thái thu hồi hạt sáng về vị trí hình trái tim ban đầu
+        let arrivedCount = 0;
+        const speedFactor = 0.1; // Tốc độ di chuyển về hình gốc
 
-        for (let i = 0; i < heartParticleCount * 3; i++) {
-          let target = originalPositions[i];
-          let current = pos[i];
-          
-          // Di chuyển 12% khoảng cách còn lại mỗi frame
-          pos[i] += (target - current) * 0.12;
+        for (let i = 0; i < heartParticleCount; i++) {
+          let ox = originalPositions[i * 3];
+          let oy = originalPositions[i * 3 + 1];
+          let oz = originalPositions[i * 3 + 2];
 
-          if (Math.abs(target - pos[i]) > 0.05) {
-            settled = false;
-          }
+          pos[i * 3] += (ox - pos[i * 3]) * speedFactor;
+          pos[i * 3 + 1] += (oy - pos[i * 3 + 1]) * speedFactor;
+          pos[i * 3 + 2] += (oz - pos[i * 3 + 2]) * speedFactor;
+
+          // Kiểm tra xem hạt đã về gần vị trí gốc chưa
+          let dist = Math.abs(pos[i * 3] - ox) + Math.abs(pos[i * 3 + 1] - oy) + Math.abs(pos[i * 3 + 2] - oz);
+          if (dist < 0.1) arrivedCount++;
         }
+
         heartGeometry.attributes.position.needsUpdate = true;
 
+        // Hiện mờ dần trở lại
         if (heartMaterial.opacity < 0.95) heartMaterial.opacity += 0.02;
+        if (ringMaterial.opacity < 0.9) ringMaterial.opacity += 0.02;
 
-        // Hoàn tất phục hồi hoàn toàn
-        if (settled) {
-          // Gán lại đúng tọa độ tuyệt đối
+        // Khi đại đa số các hạt đã về vị trí cũ thì quay lại trạng thái normal
+        if (arrivedCount > heartParticleCount * 0.85) {
+          state = 'normal';
+          // Đặt lại chính xác vị trí gốc
           for (let i = 0; i < heartParticleCount * 3; i++) {
             pos[i] = originalPositions[i];
           }
           heartGeometry.attributes.position.needsUpdate = true;
-          mode = 'normal';
         }
       }
 
