@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gửi Người Anh Yêu ❤️</title>
+  <title>Heart 3D</title>
   <style>
     * {
       margin: 0;
@@ -13,7 +13,6 @@
     body {
       background-color: #000;
       overflow: hidden;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
     #canvas-container {
       width: 100vw;
@@ -21,44 +20,21 @@
       position: absolute;
       top: 0;
       left: 0;
-      z-index: 1;
+      cursor: grab;
     }
-    .text-overlay {
-      position: absolute;
-      bottom: 12%;
-      width: 100%;
-      text-align: center;
-      z-index: 10;
-      pointer-events: none;
-    }
-    .message {
-      color: #ffffff;
-      font-size: 1.8rem;
-      letter-spacing: 2px;
-      font-weight: 600;
-      text-shadow: 0 0 20px #ff1493, 0 0 40px #ff1493;
-      margin-bottom: 8px;
-    }
-    .sub-message {
-      color: #ffb6c1;
-      font-size: 1.1rem;
-      text-shadow: 0 0 10px #ff69b4;
+    #canvas-container:active {
+      cursor: grabbing;
     }
   </style>
-  <!-- Nhập thư viện Three.js vẽ 3D -->
+  <!-- Thư viện Three.js và OrbitControls để xoay / zoom bằng chuột và cảm ứng -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 </head>
 <body>
 
   <div id="canvas-container"></div>
 
-  <div class="text-overlay">
-    <div class="message">Thế giới của anh nhỏ lắm...</div>
-    <div class="sub-message">Vừa đủ để chứa một mình em thôi ❤️</div>
-  </div>
-
   <script>
-    // Khởi tạo Scene, Camera, Renderer 3D
     const container = document.getElementById('canvas-container');
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -69,8 +45,15 @@
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     container.appendChild(renderer.domElement);
 
-    // Tạo hình trái tim 3D từ thuật toán hạt (Particles)
-    const particleCount = 6000;
+    // Kích hoạt điều khiển xoay 3D / Zoom bằng chuột & vuốt cảm ứng
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.rotateSpeed = 0.8;
+    controls.enableZoom = true;
+
+    // Tạo hình trái tim 3D từ các hạt sáng (Particles)
+    const particleCount = 7000;
     const geometry = new THREE.BufferGeometry();
     const positions = new Float32Array(particleCount * 3);
     const colors = new Float32Array(particleCount * 3);
@@ -78,16 +61,13 @@
     const baseColor = new THREE.Color("#ff1493");
 
     for (let i = 0; i < particleCount; i++) {
-      // Công thức tạo hình trái tim 3D parametric
       let t = Math.PI * (Math.random() * 2 - 1);
       let u = Math.PI * (Math.random() * 2 - 1);
 
-      // Phương trình toán học bề mặt trái tim 3D chuẩn
       let x = 16 * Math.pow(Math.sin(t), 3) * Math.cos(u);
       let y = (13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t));
       let z = 16 * Math.pow(Math.sin(t), 3) * Math.sin(u);
 
-      // Tạo độ nhiễu và độ dày hạt 3D
       let factor = 0.6 + Math.random() * 0.2;
       positions[i * 3] = x * factor;
       positions[i * 3 + 1] = y * factor;
@@ -101,7 +81,6 @@
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
-    // Kích thước và chất liệu hạt sáng
     const material = new THREE.PointsMaterial({
       size: 0.35,
       vertexColors: true,
@@ -113,26 +92,26 @@
     const heartMesh = new THREE.Points(geometry, material);
     scene.add(heartMesh);
 
-    // Animation nhịp đập & xoay 3D
-    let clock = new THREE.Clock();
+    const clock = new THREE.Clock();
 
     function animate() {
       requestAnimationFrame(animate);
-      let elapsedTime = clock.getElapsedTime();
+      const elapsedTime = clock.getElapsedTime();
 
-      // Hiệu ứng xoay 3D nhẹ nhàng quanh trục Y
-      heartMesh.rotation.y = elapsedTime * 0.4;
-      heartMesh.rotation.x = Math.sin(elapsedTime * 0.2) * 0.1;
+      // Cập nhật tọa độ xoay/zoom khi người dùng dùng chuột
+      controls.update();
 
-      // Hiệu ứng nhịp đập 3D mượt mà
-      let beat = 1 + Math.sin(elapsedTime * 4) * 0.08 + Math.pow(Math.sin(elapsedTime * 8), 2) * 0.04;
+      // Tự động xoay nhẹ trái tim khi không di chuột
+      heartMesh.rotation.y += 0.005;
+
+      // Hiệu ứng nhịp đập 3D
+      const beat = 1 + Math.sin(elapsedTime * 4) * 0.07 + Math.pow(Math.sin(elapsedTime * 8), 2) * 0.03;
       heartMesh.scale.set(beat, beat, beat);
 
       renderer.render(scene, camera);
     }
     animate();
 
-    // Tự động điều chỉnh kích thước khi xoay màn hình điện thoại/máy tính
     window.addEventListener('resize', () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
